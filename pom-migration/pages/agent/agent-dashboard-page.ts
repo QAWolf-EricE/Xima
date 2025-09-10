@@ -4,6 +4,8 @@ import { AgentStatus, ChannelType } from '../../shared/types/core';
 import { ChannelStatePage } from './channel-state-page';
 import { ActiveMediaPage } from './active-media-page';
 import { SkillsManagementPage } from './skills-management-page';
+import { EmailInboxPage } from './email-inbox-page';
+import { EmailComposePage } from './email-compose-page';
 
 /**
  * Agent Dashboard - Main landing page for agent users
@@ -352,5 +354,138 @@ export class AgentDashboardPage extends BasePage {
       [ChannelType.CHAT]: await this.isChannelEnabled(ChannelType.CHAT),
       [ChannelType.EMAIL]: await this.isChannelEnabled(ChannelType.EMAIL)
     };
+  }
+
+  // ============================================================================
+  // EMAIL-SPECIFIC METHODS
+  // ============================================================================
+
+  /**
+   * Navigate to Email Inbox page
+   */
+  async navigateToEmailInbox(): Promise<EmailInboxPage> {
+    const emailInboxPage = new EmailInboxPage(this.page, this.baseUrl);
+    await emailInboxPage.verifyPageLoaded();
+    return emailInboxPage;
+  }
+
+  /**
+   * Check if email channel is enabled and ready
+   */
+  async isEmailChannelReady(): Promise<boolean> {
+    const emailInboxPage = await this.navigateToEmailInbox();
+    return await emailInboxPage.isEmailChannelReady();
+  }
+
+  /**
+   * Enable email channel if not already enabled
+   */
+  async enableEmailChannel(): Promise<void> {
+    console.log('Enabling email channel...');
+    await this.enableChannel(ChannelType.EMAIL);
+    
+    // Verify email channel is ready
+    const emailInboxPage = await this.navigateToEmailInbox();
+    await emailInboxPage.waitForEmailChannelReady();
+    
+    console.log('Email channel enabled and ready');
+  }
+
+  /**
+   * Clean up all active emails in the dashboard
+   */
+  async cleanupActiveEmails(): Promise<void> {
+    const emailInboxPage = await this.navigateToEmailInbox();
+    await emailInboxPage.cleanupAllActiveEmails();
+  }
+
+  /**
+   * Wait for new email to arrive
+   */
+  async waitForNewEmail(timeoutMs: number = 60000): Promise<void> {
+    const emailInboxPage = await this.navigateToEmailInbox();
+    await emailInboxPage.waitForNewEmail(timeoutMs);
+  }
+
+  /**
+   * Open first email for reading/responding
+   */
+  async openFirstEmail(): Promise<EmailComposePage> {
+    const emailInboxPage = await this.navigateToEmailInbox();
+    await emailInboxPage.openFirstEmail();
+    
+    // Return compose page for email interaction
+    const emailComposePage = new EmailComposePage(this.page, this.baseUrl);
+    await emailComposePage.verifyPageLoaded();
+    
+    return emailComposePage;
+  }
+
+  /**
+   * Check if there are active emails waiting
+   */
+  async hasActiveEmails(): Promise<boolean> {
+    const emailInboxPage = await this.navigateToEmailInbox();
+    return await emailInboxPage.hasActiveEmails();
+  }
+
+  /**
+   * Get count of active emails
+   */
+  async getActiveEmailCount(): Promise<number> {
+    const emailInboxPage = await this.navigateToEmailInbox();
+    return await emailInboxPage.getActiveEmailCount();
+  }
+
+  /**
+   * Complete email setup for agent (enable channel + skills + ready status)
+   */
+  async setupForEmailTesting(skillNumber?: string): Promise<void> {
+    console.log('Setting up agent for email testing...');
+    
+    // Enable specific skill if provided
+    if (skillNumber) {
+      await this.enableSkill(skillNumber);
+    }
+    
+    // Set agent to Ready status
+    await this.setReady();
+    
+    // Enable email channel
+    await this.enableEmailChannel();
+    
+    // Clean up any existing emails
+    await this.cleanupActiveEmails();
+    
+    console.log('Agent setup for email testing completed');
+  }
+
+  /**
+   * Handle email workflow: receive, open, and get compose page
+   */
+  async handleIncomingEmail(): Promise<EmailComposePage> {
+    console.log('Handling incoming email workflow...');
+    
+    // Wait for new email
+    await this.waitForNewEmail();
+    
+    // Open the email
+    const composePage = await this.openFirstEmail();
+    
+    console.log('Email opened and ready for interaction');
+    return composePage;
+  }
+
+  /**
+   * Verify email channel state matches expected status
+   */
+  async verifyEmailChannelState(expectedReady: boolean = true): Promise<void> {
+    const isReady = await this.isEmailChannelReady();
+    
+    if (isReady !== expectedReady) {
+      throw new Error(`Email channel state mismatch. Expected: ${expectedReady}, Actual: ${isReady}`);
+    }
+    
+    console.log(`Email channel state verified: ${expectedReady ? 'Ready' : 'Not Ready'}`);
   }
 }
